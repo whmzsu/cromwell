@@ -20,7 +20,7 @@ import wom.graph.expression.ExpressionNodeLike
 
 object ExecutionStore {
 
-  type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
+  type StatusTable = Table[WomIdentifier, ExecutionIndex.ExecutionIndex, JobKey]
 
   val MaxJobsAllowedInQueuedState = 1000
 
@@ -29,7 +29,7 @@ object ExecutionStore {
       * Given a StatusStable, return true if all dependencies of this key are in the table (and therefore are in this status),
       * false otherwise.
       */
-    def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
+    def allDependenciesAreIn(statusTable: StatusTable) = {
       def chooseIndex(port: OutputPort) = port match {
         case _: ScatterGathererPort => None
         case _: NodeCompletionPort => None
@@ -38,11 +38,11 @@ object ExecutionStore {
 
       key match {
         case scatteredCallCompletion: ScatteredCallCompletionKey =>
-          statusTable.row(scatteredCallCompletion.node).size == scatteredCallCompletion.totalIndices
+          statusTable.row(scatteredCallCompletion.node.identifier).size == scatteredCallCompletion.totalIndices
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
           // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
-          statusTable.row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode).size == scatterCollector.scatterWidth
+          statusTable.row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode.identifier).size == scatterCollector.scatterWidth
         case conditionalCollector: ConditionalCollectorKey =>
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
@@ -75,13 +75,13 @@ object ExecutionStore {
   implicit class EnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
 
     def isInStatus(index: ExecutionIndex, table: StatusTable): Boolean = graphNode match {
-      case svn: ScatterVariableNode => table.contains(svn.linkToOuterGraph.graphNode, None)
+      case svn: ScatterVariableNode => table.contains(svn.linkToOuterGraph.graphNode.identifier, None)
       // OuterGraphInputNodes signal that an input comes from outside the graph.
       // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
       case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex => ogin.linkToOuterGraph.executionNode.isInStatus(None, table)
       case ogin: OuterGraphInputNode => ogin.linkToOuterGraph.executionNode.isInStatus(index, table)
       case _: GraphInputNode => true
-      case _ => table.contains(graphNode, index)
+      case _ => table.contains(graphNode.identifier, index)
     }
   }
 
@@ -207,9 +207,9 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * (node, index) pair
    */
   lazy val (doneStatus, terminalStatus) = {
-    def toTableEntry(key: JobKey) = (key.node, key.index, key)
+    def toTableEntry(key: JobKey) = (key.node.identifier, key.index, key)
 
-    store.foldLeft((Table.empty[GraphNode, ExecutionIndex, JobKey], Table.empty[GraphNode, ExecutionIndex, JobKey]))({
+    store.foldLeft((Table.empty[WomIdentifier, ExecutionIndex, JobKey], Table.empty[WomIdentifier, ExecutionIndex.ExecutionIndex, JobKey]))({
       case ((done, terminal), (status, keys))  =>
         lazy val newMapEntries = keys map toTableEntry
         val newDone = if (status.isDoneOrBypassed) done.addAll(newMapEntries) else done
