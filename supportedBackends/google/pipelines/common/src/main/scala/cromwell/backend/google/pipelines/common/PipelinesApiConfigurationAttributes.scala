@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.common
 import java.net.URL
 
 import cats.data.Validated._
+import cats.data.ValidatedNel
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
@@ -23,6 +24,7 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.util.Try
 import scala.util.matching.Regex
@@ -46,7 +48,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
-                                               referenceFilesMapping: PipelinesApiReferenceFilesMapping)
+                                               referenceFilesMapping: PipelinesApiReferenceFilesMapping,
+                                               dockerImageCacheMapping: PipelinesApiDockerImageCacheMapping)
 
 object PipelinesApiConfigurationAttributes {
 
@@ -60,10 +63,10 @@ object PipelinesApiConfigurationAttributes {
   final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: GreaterEqualRefined)
 
 
-  lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
+  lazy val Logger: Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
   val GenomicsApiDefaultQps = 1000
-  val DefaultGcsTransferAttempts = refineMV[Positive](3)
+  val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
@@ -140,7 +143,7 @@ object PipelinesApiConfigurationAttributes {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, papiKeys, backendName, Logger)
 
-    def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
+    def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger): Unit = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
@@ -211,7 +214,11 @@ object PipelinesApiConfigurationAttributes {
       (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
     }
 
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathToManifestFile(backendConfig)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] =
+      validateGcsPathToReferenceManifestFile(backendConfig)
+
+    val dockerImageCacheManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] =
+      validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
@@ -229,10 +236,12 @@ object PipelinesApiConfigurationAttributes {
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        memoryRetryConfig: Option[MemoryRetryConfiguration],
                                                        allowNoAddress: Boolean,
-                                                       referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]],
+                                                       dockerImageCacheManifestFiles: Option[List[ValidFullGcsPath]]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           val generatedReferenceFilesMapping = PipelinesApiReferenceFilesMapping.generateReferenceFilesMapping(gcsAuth, referenceDiskLocalizationManifestFiles)
+          val generatedDockerImageCacheMapping = PipelinesApiDockerImageCacheMapping.generateDockerImageCacheMapping(gcsAuth, dockerImageCacheManifestFiles)
           PipelinesApiConfigurationAttributes(
             project = project,
             computeServiceAccount = computeServiceAccount,
@@ -253,7 +262,8 @@ object PipelinesApiConfigurationAttributes {
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             memoryRetryConfiguration = memoryRetryConfig,
             allowNoAddress,
-            referenceFilesMapping = generatedReferenceFilesMapping
+            referenceFilesMapping = generatedReferenceFilesMapping,
+            dockerImageCacheMapping = generatedDockerImageCacheMapping
           )
     }
 
@@ -273,18 +283,25 @@ object PipelinesApiConfigurationAttributes {
       batchRequestTimeoutConfigurationValidation,
       memoryRetryConfig,
       allowNoAddress,
-      referenceDiskLocalizationManifestFiles
+      referenceDiskLocalizationManifestFiles,
+      dockerImageCacheManifestFiles
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
           override val exceptionContext = "Google Pipelines API configuration is not valid: Errors"
-          override val errorMessages = f.toList
+          override val errorMessages: immutable.Seq[String] = f.toList
         }
     }
   }
 
-  def validateGcsPathToManifestFile(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] = {
+  def validateGcsPathToReferenceManifestFile(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] =
+    validateGcsPathToManifestFile(backendConfig, path = "reference-disk-localization-manifest-files")
+
+  def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] =
+    validateGcsPathToManifestFile(backendConfig, path = "docker-image-cache-manifest-files")
+
+  private def validateGcsPathToManifestFile(backendConfig: Config, path: String): ErrorOr[Option[List[ValidFullGcsPath]]] = {
     def validate(gcsPaths: List[String]): ErrorOr[List[ValidFullGcsPath]] = {
       val result = gcsPaths.map(GcsPathBuilder.validateGcsPath) traverse {
         case validPath: ValidFullGcsPath => validPath.validNel
@@ -294,7 +311,7 @@ object PipelinesApiConfigurationAttributes {
       result.contextualizeErrors("parse paths to manifest files as valid GCS paths")
     }
 
-    backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") match {
+    backendConfig.getAs[List[String]](path) match {
       case Some(gcsPaths) => validate(gcsPaths).map(Option.apply)
       case None => None.validNel
     }
@@ -333,7 +350,7 @@ object PipelinesApiConfigurationAttributes {
     }
   }
 
-  def validatePositiveInt(n: Int, configPath: String) = {
+  def validatePositiveInt(n: Int, configPath: String): ValidatedNel[String, Refined[Int, Positive]] = {
     refineV[Positive](n) match {
       case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
       case Right(refined) => refined.validNel

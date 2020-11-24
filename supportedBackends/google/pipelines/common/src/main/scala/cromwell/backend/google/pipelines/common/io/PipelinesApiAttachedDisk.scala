@@ -91,3 +91,5 @@ case class PipelinesApiReferenceFilesDisk(image: String, sizeGb: Int) extends Pi
   val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
   val diskType: DiskType = DiskType.HDD
 }
+
+case class PipelinesApiDockerImageCacheDisk(image: String, sizeGb: Int)
