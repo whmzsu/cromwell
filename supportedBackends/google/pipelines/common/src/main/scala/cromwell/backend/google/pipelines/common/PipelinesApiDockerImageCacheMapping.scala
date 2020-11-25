@@ -24,7 +24,7 @@ object PipelinesApiDockerImageCacheMapping extends PipelinesApiDockerImageCacheM
 
 // functionality extracted into the trait for testing purposes
 protected trait PipelinesApiDockerImageCacheMappingOperations {
-  case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[DockerImage])
+  case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, images: List[DockerImage])
 
   def generateDockerImageCacheMapping(auth: GoogleAuthMode,
                                       dockerImageCacheManifestFiles: Option[List[ValidFullGcsPath]]): PipelinesApiDockerImageCacheMapping = {
@@ -44,7 +44,7 @@ protected trait PipelinesApiDockerImageCacheMappingOperations {
         // If a DockerImage appears in multiple ManifestFiles, the last ManifestFile "wins".
         def buildDockerImageMap(manifestFiles: List[ManifestFile]): Map[DockerImage, ManifestFile] = {
           manifestFiles.foldLeft(Map.empty[DockerImage, ManifestFile]) { case (acc, manifestFile) =>
-            manifestFile.files.foldLeft(acc) { case (a, image) => a + (image -> manifestFile)}
+            manifestFile.images.foldLeft(acc) { case (a, image) => a + (image -> manifestFile)}
           }
         }
 
