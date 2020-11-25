@@ -14,7 +14,6 @@ import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 /**
   * This file contains logic related to mapping Docker image names to GCP disk images on which caches of those
   * images may be found. This may take significant time, so the best way to do it is during Cromwell startup.
-  *
   */
 case class DockerImage(name: String)
 
