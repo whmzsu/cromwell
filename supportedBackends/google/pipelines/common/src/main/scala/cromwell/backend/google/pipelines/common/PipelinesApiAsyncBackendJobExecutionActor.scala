@@ -413,6 +413,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.GoogleLegacyMachineSelection).getOrElse(false)
   }
 
+  protected def workflowOptionUseDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
