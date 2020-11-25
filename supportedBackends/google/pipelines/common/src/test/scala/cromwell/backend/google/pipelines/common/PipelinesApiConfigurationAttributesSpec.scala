@@ -134,7 +134,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.name should be("my-network")
-    pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.subnetwork should be (Option("my-subnetwork"))
+    pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.subnetwork should be(Option("my-subnetwork"))
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.auth.name should be("application-default")
   }
 
@@ -367,27 +367,38 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
   def configString(customContent: String = "", genomics: String = ""): String =
     s"""
-      |{
-      |   project = "myProject"
-      |   root = "gs://myBucket"
-      |   maximum-polling-interval = 600
-      |   $customContent
-      |   genomics {
-      |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
-      |     // Pipelines and manipulate auth JSONs.
-      |     auth = "application-default"
-      |    $genomics
-      |     endpoint-url = "http://myEndpoint"
-      |   }
-      |
-      |   filesystems = {
-      |     gcs {
-      |       // A reference to a potentially different auth for manipulating files via engine functions.
-      |       auth = "application-default"
-      |     }
-      |   }
-      |}
-      | """.stripMargin
+       |{
+       |   project = "myProject"
+       |   root = "gs://myBucket"
+       |   maximum-polling-interval = 600
+       |   $customContent
+
+       |   gen
+
+       |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to
+
+       |     // Pipelines and manipulate auth
+
+       |     auth = "application-d
+
+       |    $genomics
+
+       |     endpoint-url = "http
+       dpoin
+
+       |
+       |   f
+       ems = {
+
+         gcs {
+       |       // A reference to a potentially different auth for manipulating files via eng
+       ctions.
+       |       auth = "applic
+       efault"
+       |
+
+       |}
+       | """.stripMargin
 
   it should "parse gsutil memory specifications" in {
     val valids = List("0", "150M", "14   PIBIT", "6kib")
@@ -455,5 +466,17 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       case Invalid(ex) =>
         fail(s"Error while parsing GCS paths to manifest files from config: $ex")
     }
+  }
+
+  it should "parse correct existing docker-image-cache-manifest-files config" in {
+    fail("write me")
+  }
+
+  it should "parse correct missing docker-image-cache-manifest-files config" in {
+    fail("write me")
+  }
+
+  it should "parse correct empty docker-image-cache-manifest-files config" in {
+    fail("write me")
   }
 }
