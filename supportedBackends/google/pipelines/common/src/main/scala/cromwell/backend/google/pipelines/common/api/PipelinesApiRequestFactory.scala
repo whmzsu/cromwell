@@ -88,6 +88,7 @@ object PipelinesApiRequestFactory {
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
                                       referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
+                                      dockerImageCacheMapping: PipelinesApiDockerImageCacheMapping,
                                       monitoringImage: MonitoringImage,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],

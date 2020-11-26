@@ -5,8 +5,8 @@ import java.net.URL
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.bigquery.BigqueryScopes
 import com.google.api.services.compute.ComputeScopes
-import com.google.api.services.lifesciences.v2beta.model._
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
+import com.google.api.services.lifesciences.v2beta.model._
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.ConfigFactory
@@ -153,7 +153,11 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
-        // .setDockerCacheImages(???)
+
+      if (createPipelineParameters.runtimeAttributes.useDockerImageCache) {
+        // val cache = createPipelineParameters.dockerImageCacheMapping
+        // check if image is in cache and if so then virtualMachine.setDockerCacheImages(image)
+      }
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

@@ -8,7 +8,6 @@ import com.google.api.services.storage.StorageScopes
 import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import cromwell.backend.google.pipelines.common.io.PipelinesApiDockerImageCacheDisk
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 
 /**
@@ -57,15 +56,6 @@ protected trait PipelinesApiDockerImageCacheMappingOperations {
         }}
     }
     PipelinesApiDockerImageCacheMapping(validDockerImageCacheMapIO.unsafeRunSync())
-  }
-
-  def getReferenceInputsToMountedPathMappings(pipelinesApiReferenceFilesMapping: PipelinesApiReferenceFilesMapping,
-                                              inputFiles: List[PipelinesApiInput]): Map[PipelinesApiInput, String] = {
-    val gcsPathsToInputs = inputFiles.collect { case i if i.cloudPath.isInstanceOf[GcsPath] => (i.cloudPath.asInstanceOf[GcsPath].pathAsString, i) }.toMap
-    pipelinesApiReferenceFilesMapping.validReferenceFilesMap.collect {
-      case (path, disk) if gcsPathsToInputs.keySet.contains(s"gs://$path")  =>
-        (gcsPathsToInputs(s"gs://$path"), s"${disk.mountPoint.pathAsString}/$path")
-    }
   }
 
   protected def readDockerImageCacheManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {

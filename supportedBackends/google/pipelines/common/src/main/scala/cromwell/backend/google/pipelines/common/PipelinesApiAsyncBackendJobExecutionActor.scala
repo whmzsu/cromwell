@@ -494,6 +494,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalization = referenceDisksToMount,
+          dockerImageCacheMapping = pipelinesConfiguration.papiAttributes.dockerImageCacheMapping,
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels

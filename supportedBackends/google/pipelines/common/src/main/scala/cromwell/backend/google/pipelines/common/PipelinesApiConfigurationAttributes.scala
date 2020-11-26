@@ -107,7 +107,8 @@ object PipelinesApiConfigurationAttributes {
     "memory-retry.error-keys",
     "memory-retry.multiplier",
     allowNoAddressAttributeKey,
-    "reference-disk-localization-manifest-files"
+    "reference-disk-localization-manifest-files",
+    "docker-image-cache-manifest-files"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
