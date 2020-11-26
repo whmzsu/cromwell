@@ -367,38 +367,27 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
   def configString(customContent: String = "", genomics: String = ""): String =
     s"""
-       |{
-       |   project = "myProject"
-       |   root = "gs://myBucket"
-       |   maximum-polling-interval = 600
-       |   $customContent
-
-       |   gen
-
-       |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to
-
-       |     // Pipelines and manipulate auth
-
-       |     auth = "application-d
-
-       |    $genomics
-
-       |     endpoint-url = "http
-       dpoin
-
-       |
-       |   f
-       ems = {
-
-         gcs {
-       |       // A reference to a potentially different auth for manipulating files via eng
-       ctions.
-       |       auth = "applic
-       efault"
-       |
-
-       |}
-       | """.stripMargin
+      |{
+      |   project = "myProject"
+      |   root = "gs://myBucket"
+      |   maximum-polling-interval = 600
+      |   $customContent
+      |   genomics {
+      |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+      |     // Pipelines and manipulate auth JSONs.
+      |     auth = "application-default"
+      |    $genomics
+      |     endpoint-url = "http://myEndpoint"
+      |   }
+      |
+      |   filesystems = {
+      |     gcs {
+      |       // A reference to a potentially different auth for manipulating files via engine functions.
+      |       auth = "application-default"
+      |     }
+      |   }
+      |}
+      | """.stripMargin
 
   it should "parse gsutil memory specifications" in {
     val valids = List("0", "150M", "14   PIBIT", "6kib")
